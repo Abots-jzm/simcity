@@ -1,11 +1,11 @@
-use config::Config;
+use config::initialize_config;
+use map::Map;
 
 mod config;
 mod map;
 mod map_cell;
 
 fn main() {
-    let mut config: Config = Config::new();
-
-    config.init();
+    let config = initialize_config();
+    let map = Map::new(&config);
 }

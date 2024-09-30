@@ -9,47 +9,23 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Config {
-        Config {
-            config_filename: String::new(),
-            region_layout_filename: String::new(),
-            time_limit: 0,
-            refresh_rate: 0,
-        }
-    }
-
-    pub fn init(&mut self) {
-        self.request_config_filename();
-        self.read_config_file();
-    }
-
-    fn request_config_filename(&mut self) {
-        println!("Please input a valid config file(.txt): ");
-        let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
-        self.config_filename = input.trim().to_string();
-
-        while !self.config_filename.ends_with(".txt") {
-            println!("Error: Invalid file format.\nPlease input a valid config file(.txt): ");
-            input.clear();
-            stdin().read_line(&mut input).unwrap();
-            self.config_filename = input.trim().to_string();
-        }
-    }
-
-    fn read_config_file(&mut self) {
-        let file = match File::open(&self.config_filename.trim()) {
+    fn new(config_filename: &str) -> Config {
+        let file = match File::open(config_filename) {
             Ok(file) => file,
             Err(ref error) if error.kind() == ErrorKind::NotFound => {
                 println!("Error: File not found. Please input a valid config file(.txt): ");
-                self.request_config_filename();
-                return self.read_config_file();
+                let config_filename = request_config_filename();
+                return Config::new(&config_filename);
             }
             Err(error) => {
                 panic!("Error opening file: {:?}", error);
             }
         };
+
         let reader = BufReader::new(file);
+        let mut region_layout_filename = String::new();
+        let mut time_limit = 0;
+        let mut refresh_rate = 0;
 
         for line in reader.lines() {
             let line = line.unwrap();
@@ -58,22 +34,53 @@ impl Config {
             let value = split.next().unwrap();
 
             match key {
-                "Region Layout" => self.region_layout_filename = value.to_string(),
-                "Time Limit" => self.time_limit = value.trim().parse().unwrap(),
-                "Refresh Rate" => self.refresh_rate = value.trim().parse().unwrap(),
+                "Region Layout" => region_layout_filename = value.to_string(),
+                "Time Limit" => time_limit = value.trim().parse().unwrap(),
+                "Refresh Rate" => refresh_rate = value.trim().parse().unwrap(),
                 _ => (),
             }
         }
 
-        if self.region_layout_filename.is_empty() {
+        if region_layout_filename.is_empty() {
             println!("Error: Couldn't read 'Region Layout' from config file. Please ensure config file line is in the format 'Region Layout: <Region_Layout_File>.csv'");
-            self.init();
-        } else if self.time_limit == 0 {
+            return Config::new(&request_config_filename());
+        } else if time_limit == 0 {
             println!("Error: Couldn't read 'Time Limit' from config file. Please ensure config file line is in the format 'Time Limit: <Time_Limit>'");
-            self.init();
-        } else if self.refresh_rate == 0 {
+            return Config::new(&request_config_filename());
+        } else if refresh_rate == 0 {
             println!("Error: Couldn't read 'Refresh Rate' from config file. Please ensure config file line is in the format 'Refresh Rate: <Refresh_Rate>'");
-            self.init();
+            return Config::new(&request_config_filename());
         }
+
+        return Config {
+            region_layout_filename,
+            time_limit,
+            refresh_rate,
+            config_filename: config_filename.to_string(),
+        };
     }
+}
+
+fn request_config_filename() -> String {
+    println!("Please input a valid config file(.txt): ");
+    let mut input = String::new();
+    stdin()
+        .read_line(&mut input)
+        .expect("Error: Unable to read user input.");
+
+    input = input.trim().to_string();
+    while !input.ends_with(".txt") {
+        println!("Error: Invalid file format.\nPlease input a valid config file(.txt): ");
+        input.clear();
+        stdin()
+            .read_line(&mut input)
+            .expect("Error: Unable to read user input.");
+    }
+
+    return input;
+}
+
+pub fn initialize_config() -> Config {
+    let config_filename = request_config_filename();
+    return Config::new(&config_filename);
 }
