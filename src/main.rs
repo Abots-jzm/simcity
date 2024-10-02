@@ -1,7 +1,12 @@
 use config::Config;
+use map::Map;
 
 mod config;
+mod map;
+mod map_cell;
 
 fn main() {
-    let config = Config::from_user_input();
+    let mut config = Config::from_user_input();
+    let map = Map::from_config(&mut config);
+    map.print();
 }

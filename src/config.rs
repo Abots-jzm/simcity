@@ -63,14 +63,14 @@ impl Config {
             let value = split.next().unwrap();
 
             match key {
-                "Region Layout" => region_layout_filename = value.to_string(),
+                "Region Layout" => region_layout_filename = value.trim().to_string(),
                 "Time Limit" => time_limit = value.trim().parse().unwrap(),
                 "Refresh Rate" => refresh_rate = value.trim().parse().unwrap(),
                 _ => (),
             }
         }
 
-        if region_layout_filename.is_empty() {
+        if region_layout_filename.is_empty() || !region_layout_filename.ends_with(".csv") {
             return Err("Error: Couldn't read 'Region Layout' from config file. Please ensure config file line is in the format 'Region Layout: <Region_Layout_File>.csv'".to_string());
         } else if time_limit == 0 {
             return Err("Error: Couldn't read 'Time Limit' from config file. Please ensure config file line is in the format 'Time Limit: <Time_Limit>'".to_string());
@@ -86,56 +86,3 @@ impl Config {
         });
     }
 }
-
-// impl Config {
-//     fn new(config_filename: &str) -> Config {
-//         let file = match File::open(config_filename) {
-//             Ok(file) => file,
-//             Err(ref error) if error.kind() == ErrorKind::NotFound => {
-//                 println!("Error: File not found. Please input a valid config file(.txt): ");
-//                 let config_filename = request_config_filename();
-//                 return Config::new(&config_filename);
-//             }
-//             Err(error) => {
-//                 panic!("Error opening file: {:?}", error);
-//             }
-//         };
-
-//         let reader = BufReader::new(file);
-//         let mut region_layout_filename = String::new();
-//         let mut time_limit = 0;
-//         let mut refresh_rate = 0;
-
-//         for line in reader.lines() {
-//             let line = line.unwrap();
-//             let mut split = line.split(":");
-//             let key = split.next().unwrap();
-//             let value = split.next().unwrap();
-
-//             match key {
-//                 "Region Layout" => region_layout_filename = value.to_string(),
-//                 "Time Limit" => time_limit = value.trim().parse().unwrap(),
-//                 "Refresh Rate" => refresh_rate = value.trim().parse().unwrap(),
-//                 _ => (),
-//             }
-//         }
-
-//         if region_layout_filename.is_empty() {
-//             println!("Error: Couldn't read 'Region Layout' from config file. Please ensure config file line is in the format 'Region Layout: <Region_Layout_File>.csv'");
-//             return Config::new(&request_config_filename());
-//         } else if time_limit == 0 {
-//             println!("Error: Couldn't read 'Time Limit' from config file. Please ensure config file line is in the format 'Time Limit: <Time_Limit>'");
-//             return Config::new(&request_config_filename());
-//         } else if refresh_rate == 0 {
-//             println!("Error: Couldn't read 'Refresh Rate' from config file. Please ensure config file line is in the format 'Refresh Rate: <Refresh_Rate>'");
-//             return Config::new(&request_config_filename());
-//         }
-
-//         return Config {
-//             region_layout_filename,
-//             time_limit,
-//             refresh_rate,
-//             config_filename: config_filename.to_string(),
-//         };
-//     }
-// }
