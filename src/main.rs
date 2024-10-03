@@ -1,6 +1,7 @@
 use config::Config;
 use map::Map;
 
+mod cell_type;
 mod config;
 mod map;
 mod map_cell;

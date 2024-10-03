@@ -6,10 +6,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{
-    config::Config,
-    map_cell::{CellType, MapCell},
-};
+use crate::{cell_type::CellType, config::Config, map_cell::MapCell};
 
 pub struct Map {
     pub current: Vec<Vec<Rc<RefCell<MapCell>>>>,
@@ -71,13 +68,16 @@ impl Map {
         self.previous = Some(self.current.clone());
         self.track_adjacent_cells(Grid::Previous);
 
-        // Add every element in current grid to max heap priority queue
-        // let mut queue: BinaryHeap<_> = BinaryHeap::new();
-        // for row in &self.current {
-        //     for cell in row {
-        //         queue.push(Rc::clone(cell));
-        //     }
-        // }
+        let mut queue: BinaryHeap<_> = BinaryHeap::new();
+        for row in &self.current {
+            for cell in row {
+                queue.push(Rc::clone(cell));
+            }
+        }
+
+        while let Some(cell) = queue.pop() {
+            cell.borrow_mut().step();
+        }
     }
 
     fn track_adjacent_cells(&self, grid: Grid) {
