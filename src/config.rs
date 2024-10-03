@@ -7,7 +7,7 @@ pub struct Config {
     pub region_layout_filename: String,
     pub time_limit: u32,
     pub refresh_rate: u32,
-    config_filename: String,
+    // config_filename: String,
 }
 
 impl Config {
@@ -79,7 +79,7 @@ impl Config {
         }
 
         return Ok(Self {
-            config_filename: String::from(config_filename),
+            // config_filename: String::from(config_filename),
             refresh_rate,
             time_limit,
             region_layout_filename,

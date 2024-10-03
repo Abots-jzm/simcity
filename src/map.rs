@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    collections::BinaryHeap,
     fs,
     io::{self, BufRead, ErrorKind},
     rc::Rc,
@@ -11,7 +12,13 @@ use crate::{
 };
 
 pub struct Map {
-    grid: Vec<Vec<Rc<RefCell<MapCell>>>>,
+    pub current: Vec<Vec<Rc<RefCell<MapCell>>>>,
+    pub previous: Option<Vec<Vec<Rc<RefCell<MapCell>>>>>,
+}
+
+enum Grid {
+    Current,
+    Previous,
 }
 
 impl Map {
@@ -34,7 +41,7 @@ impl Map {
         };
 
         let reader = io::BufReader::new(file);
-        let mut grid = vec![];
+        let mut current = vec![];
 
         for (y, line) in reader.lines().enumerate() {
             let line = line.expect("Error. Unexpected error while reading line");
@@ -48,76 +55,122 @@ impl Map {
                 ))));
             }
 
-            grid.push(row);
+            current.push(row);
         }
 
-        let new_map = Self { grid };
-        new_map.trackAdjacentCells();
+        let new_map = Self {
+            current,
+            previous: None,
+        };
+        new_map.track_adjacent_cells(Grid::Current);
 
         return new_map;
     }
 
-    fn trackAdjacentCells(&self) {
-        for row in &self.grid {
+    pub fn step(&mut self) {
+        self.previous = Some(self.current.clone());
+        self.track_adjacent_cells(Grid::Previous);
+
+        // Add every element in current grid to max heap priority queue
+        // let mut queue: BinaryHeap<_> = BinaryHeap::new();
+        // for row in &self.current {
+        //     for cell in row {
+        //         queue.push(Rc::clone(cell));
+        //     }
+        // }
+    }
+
+    fn track_adjacent_cells(&self, grid: Grid) {
+        let grid = match grid {
+            Grid::Current => &self.current,
+            Grid::Previous => self.previous.as_ref().unwrap(),
+        };
+
+        for row in grid {
             for cell in row {
                 let (x, y) = cell.borrow().position;
-                // let mut adjacentCells = vec![];
                 if let CellType::Other(_) = cell.borrow().type_ {
                     continue;
                 }
 
                 if x > 0 {
                     cell.borrow_mut()
-                        .adjacentCells
-                        .push(Rc::clone(&self.grid[y][x - 1]));
+                        .adjacent_cells
+                        .push(Rc::clone(&grid[y][x - 1]));
 
                     if y > 0 {
                         cell.borrow_mut()
-                            .adjacentCells
-                            .push(Rc::clone(&self.grid[y - 1][x - 1]));
+                            .adjacent_cells
+                            .push(Rc::clone(&grid[y - 1][x - 1]));
                     }
-                    if y < self.grid.len() - 1 {
+                    if y < grid.len() - 1 {
                         cell.borrow_mut()
-                            .adjacentCells
-                            .push(Rc::clone(&self.grid[y + 1][x - 1]));
+                            .adjacent_cells
+                            .push(Rc::clone(&grid[y + 1][x - 1]));
                     }
                 }
-                if x < self.grid[y].len() - 1 {
+                if x < grid[y].len() - 1 {
                     cell.borrow_mut()
-                        .adjacentCells
-                        .push(Rc::clone(&self.grid[y][x + 1]));
+                        .adjacent_cells
+                        .push(Rc::clone(&grid[y][x + 1]));
 
                     if y > 0 {
                         cell.borrow_mut()
-                            .adjacentCells
-                            .push(Rc::clone(&self.grid[y - 1][x + 1]));
+                            .adjacent_cells
+                            .push(Rc::clone(&grid[y - 1][x + 1]));
                     }
-                    if y < self.grid.len() - 1 {
+                    if y < grid.len() - 1 {
                         cell.borrow_mut()
-                            .adjacentCells
-                            .push(Rc::clone(&self.grid[y + 1][x + 1]));
+                            .adjacent_cells
+                            .push(Rc::clone(&grid[y + 1][x + 1]));
                     }
                 }
                 if y > 0 {
                     cell.borrow_mut()
-                        .adjacentCells
-                        .push(Rc::clone(&self.grid[y - 1][x]));
+                        .adjacent_cells
+                        .push(Rc::clone(&grid[y - 1][x]));
                 }
-                if y < self.grid.len() - 1 {
+                if y < grid.len() - 1 {
                     cell.borrow_mut()
-                        .adjacentCells
-                        .push(Rc::clone(&self.grid[y + 1][x]));
+                        .adjacent_cells
+                        .push(Rc::clone(&grid[y + 1][x]));
                 }
             }
         }
     }
+}
 
-    pub fn print(&self) {
-        for row in &self.grid {
+impl std::fmt::Display for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let width = self.current.first().map_or(0, |row| row.len());
+        let border = "+".to_string() + &"-".repeat(width * 5) + "+\n";
+
+        write!(f, "{}", border)?;
+
+        for row in &self.current {
+            write!(f, "|")?;
             for region in row {
-                print!("{}", region.borrow());
+                write!(f, "{}", region.borrow())?;
             }
-            println!();
+            write!(f, "|\n")?;
         }
+
+        write!(f, "{}", border)?;
+
+        Ok(())
+    }
+}
+
+impl PartialEq for Map {
+    fn eq(&self, other: &Self) -> bool {
+        for (row1, row2) in self.current.iter().zip(other.current.iter()) {
+            for (cell1, cell2) in row1.iter().zip(row2.iter()) {
+                if *cell1.borrow() != *cell2.borrow() {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 }
