@@ -3,6 +3,7 @@ use map::Map;
 
 mod cell_type;
 mod config;
+mod grid;
 mod map;
 mod map_cell;
 mod simulation;

@@ -1,3 +1,4 @@
+use crate::grid::GridHelper;
 use crate::{config::Config, map::Map};
 
 pub struct Simulation<'a> {
@@ -40,18 +41,30 @@ impl<'a> Simulation<'a> {
     }
 
     fn end(&self) {
-        println!("\nSIMULATION ENDED");
-        // println!("\nFINAL REGION STATE");
-        // println!("{}\n", self.map);
+        println!("\nFINAL REGION STATE");
+        println!("{}\n", self.map);
+        println!(
+            "Available Workers: {}",
+            self.map.current.get_available_workers()
+        );
+        println!(
+            "Available Goods: {}",
+            self.map.current.get_available_goods()
+        );
     }
 
     fn print_current_state(&self) {
         println!("STATE: {}", self.state);
         println!("Time Step: {}", self.time_step);
         println!("{}\n", self.map);
-        //available workers
-        //available jobs
-        //endl
+        println!(
+            "Available Workers: {}",
+            self.map.current.get_available_workers()
+        );
+        println!(
+            "Available Goods: {}\n",
+            self.map.current.get_available_goods()
+        );
     }
 
     fn should_simulation_end(&self) -> bool {

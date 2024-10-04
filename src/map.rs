@@ -6,16 +6,12 @@ use std::{
     rc::Rc,
 };
 
-use crate::{cell_type::CellType, config::Config, map_cell::MapCell};
+use crate::grid::GridHelper;
+use crate::{config::Config, grid::Grid, map_cell::MapCell};
 
 pub struct Map {
-    pub current: Vec<Vec<Rc<RefCell<MapCell>>>>,
-    pub previous: Option<Vec<Vec<Rc<RefCell<MapCell>>>>>,
-}
-
-enum Grid {
-    Current,
-    Previous,
+    pub current: Grid,
+    pub previous: Option<Grid>,
 }
 
 impl Map {
@@ -38,7 +34,7 @@ impl Map {
         };
 
         let reader = io::BufReader::new(file);
-        let mut current = vec![];
+        let mut current: Grid = vec![];
 
         for (y, line) in reader.lines().enumerate() {
             let line = line.expect("Error. Unexpected error while reading line");
@@ -54,19 +50,17 @@ impl Map {
 
             current.push(row);
         }
+        current.track_adjacent_cells();
 
-        let new_map = Self {
+        Self {
             current,
             previous: None,
-        };
-        new_map.track_adjacent_cells(Grid::Current);
-
-        return new_map;
+        }
     }
 
     pub fn step(&mut self) {
-        self.previous = Some(self.current.clone());
-        self.track_adjacent_cells(Grid::Previous);
+        self.previous = Some(self.current.deep_clone());
+        self.previous.as_ref().unwrap().track_adjacent_cells();
 
         let mut queue: BinaryHeap<_> = BinaryHeap::new();
         for row in &self.current {
@@ -75,67 +69,16 @@ impl Map {
             }
         }
 
+        let mut available_workers = self.previous.as_ref().unwrap().get_available_workers();
+        let mut available_goods = self.previous.as_ref().unwrap().get_available_goods();
+
         while let Some(cell) = queue.pop() {
-            cell.borrow_mut().step();
-        }
-    }
+            let (x, y) = cell.borrow().position;
 
-    fn track_adjacent_cells(&self, grid: Grid) {
-        let grid = match grid {
-            Grid::Current => &self.current,
-            Grid::Previous => self.previous.as_ref().unwrap(),
-        };
+            let prev_cell = self.previous.as_ref().unwrap()[y][x].borrow();
 
-        for row in grid {
-            for cell in row {
-                let (x, y) = cell.borrow().position;
-                if let CellType::Other(_) = cell.borrow().type_ {
-                    continue;
-                }
-
-                if x > 0 {
-                    cell.borrow_mut()
-                        .adjacent_cells
-                        .push(Rc::clone(&grid[y][x - 1]));
-
-                    if y > 0 {
-                        cell.borrow_mut()
-                            .adjacent_cells
-                            .push(Rc::clone(&grid[y - 1][x - 1]));
-                    }
-                    if y < grid.len() - 1 {
-                        cell.borrow_mut()
-                            .adjacent_cells
-                            .push(Rc::clone(&grid[y + 1][x - 1]));
-                    }
-                }
-                if x < grid[y].len() - 1 {
-                    cell.borrow_mut()
-                        .adjacent_cells
-                        .push(Rc::clone(&grid[y][x + 1]));
-
-                    if y > 0 {
-                        cell.borrow_mut()
-                            .adjacent_cells
-                            .push(Rc::clone(&grid[y - 1][x + 1]));
-                    }
-                    if y < grid.len() - 1 {
-                        cell.borrow_mut()
-                            .adjacent_cells
-                            .push(Rc::clone(&grid[y + 1][x + 1]));
-                    }
-                }
-                if y > 0 {
-                    cell.borrow_mut()
-                        .adjacent_cells
-                        .push(Rc::clone(&grid[y - 1][x]));
-                }
-                if y < grid.len() - 1 {
-                    cell.borrow_mut()
-                        .adjacent_cells
-                        .push(Rc::clone(&grid[y + 1][x]));
-                }
-            }
+            cell.borrow_mut()
+                .step(&prev_cell, &mut available_workers, &mut available_goods);
         }
     }
 }

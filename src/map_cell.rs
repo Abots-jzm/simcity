@@ -2,6 +2,7 @@ use std::{cell::RefCell, cmp::Ordering, fmt, rc::Rc};
 
 use crate::cell_type::CellType;
 
+#[derive(Clone)]
 pub struct MapCell {
     pub position: (usize, usize),
     pub type_: CellType,
@@ -28,18 +29,118 @@ impl MapCell {
         }
     }
 
-    pub fn step(&mut self) {
+    pub fn add_adjacent_cell(&mut self, cell: Rc<RefCell<MapCell>>) {
+        if cell.borrow().type_ == CellType::Other('T')
+            || cell.borrow().type_ == CellType::Other('#')
+        {
+            self.is_powerline_adjacent = true;
+        }
+
+        self.adjacent_cells.push(cell);
+    }
+
+    pub fn step(&mut self, previous: &MapCell, workers: &mut u32, goods: &mut u32) {
         match &self.type_ {
-            CellType::Residential(_) => {
-                self.population += 1;
-            }
-            CellType::Industrial(_) => {
-                self.pollution += 1;
-            }
-            CellType::Commercial(_) => {
-                self.population -= 1;
-            }
+            CellType::Residential(_) => self.residential_grow(previous),
+            CellType::Industrial(_) => self.industrial_grow(previous, workers),
+            CellType::Commercial(_) => self.commercial_grow(previous, workers, goods),
             CellType::Other(_) => {}
+        }
+    }
+
+    fn residential_grow(&mut self, previous: &MapCell) {
+        if previous.population == 0 {
+            if previous.is_powerline_adjacent || previous.count_adjacent_population() >= 1 {
+                self.population = 1;
+            }
+        } else {
+            let (target_adjacents, target_population) = match previous.population {
+                1 => (2, 1),
+                2 => (4, 2),
+                3 => (6, 3),
+                4 => (8, 4),
+                _ => return,
+            };
+
+            let mut target_adjacents = target_adjacents;
+
+            for cell in &previous.adjacent_cells {
+                if cell.borrow().population >= target_population {
+                    target_adjacents -= 1;
+                }
+
+                if target_adjacents == 0 {
+                    self.population = previous.population + 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    fn industrial_grow(&mut self, previous: &MapCell, workers: &mut u32) {
+        if *workers < 2 {
+            return;
+        }
+
+        if previous.population == 0 && previous.is_powerline_adjacent {
+            self.population = 1;
+            self.pollution = 1;
+            *workers -= 2;
+        } else {
+            let (target_adjacents, target_population) = match previous.population {
+                0 => (1, 1),
+                1 => (2, 1),
+                2 => (4, 2),
+                _ => return,
+            };
+
+            let mut target_adjacents = target_adjacents;
+
+            for cell in &previous.adjacent_cells {
+                if cell.borrow().population >= target_population {
+                    target_adjacents -= 1;
+                }
+
+                if target_adjacents == 0 {
+                    self.population = previous.population + 1;
+                    self.pollution = previous.pollution + 1;
+                    *workers -= 2;
+                    break;
+                }
+            }
+        }
+    }
+
+    fn commercial_grow(&mut self, previous: &MapCell, workers: &mut u32, goods: &mut u32) {
+        if *workers < 1 || *goods < 1 {
+            return;
+        }
+
+        if previous.population == 0 && previous.is_powerline_adjacent {
+            self.population = 1;
+            *workers -= 1;
+            *goods -= 1;
+        } else {
+            let (target_adjacents, target_population) = match previous.population {
+                0 => (1, 1),
+                1 => (2, 1),
+                _ => return,
+            };
+
+            let mut target_adjacents = target_adjacents;
+
+            for cell in &previous.adjacent_cells {
+                if cell.borrow().population >= target_population {
+                    target_adjacents -= 1;
+                }
+
+                if target_adjacents == 0 {
+                    self.population = previous.population + 1;
+                    *workers -= 1;
+                    *goods -= 1;
+                    break;
+                }
+            }
         }
     }
 
@@ -53,7 +154,10 @@ impl MapCell {
 
 impl fmt::Display for MapCell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "  {}  ", self.type_)
+        match self.population {
+            0 => write!(f, "  {}  ", self.type_),
+            _ => write!(f, "  {}  ", self.population),
+        }
     }
 }
 
