@@ -40,7 +40,7 @@ impl<'a> Simulation<'a> {
         }
     }
 
-    fn end(&self) {
+    fn end(&mut self) {
         println!("\nFINAL REGION STATE");
         println!("{}\n", self.map);
         println!(
@@ -51,6 +51,9 @@ impl<'a> Simulation<'a> {
             "Available Goods: {}",
             self.map.current.get_available_goods()
         );
+        self.map.spread_pollution();
+        println!("\nFINAL POLLUTION SPREAD");
+        println!("{}", self.map);
     }
 
     fn print_current_state(&self) {

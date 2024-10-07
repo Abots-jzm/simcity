@@ -81,6 +81,25 @@ impl Map {
                 .step(&prev_cell, &mut available_workers, &mut available_goods);
         }
     }
+
+    pub fn spread_pollution(&mut self) {
+        let mut queue: BinaryHeap<_> = BinaryHeap::new();
+        for row in &self.current {
+            for cell in row {
+                queue.push(Rc::clone(cell));
+            }
+        }
+
+        while let Some(cell) = queue.pop() {
+            if cell.borrow().pollution < 2 {
+                continue;
+            }
+
+            for adjacent_cell in &cell.borrow().adjacent_cells {
+                adjacent_cell.borrow_mut().pollution = cell.borrow().pollution - 1;
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for Map {

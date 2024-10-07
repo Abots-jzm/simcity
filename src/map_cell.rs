@@ -154,9 +154,11 @@ impl MapCell {
 
 impl fmt::Display for MapCell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.population {
-            0 => write!(f, "  {}  ", self.type_),
-            _ => write!(f, "  {}  ", self.population),
+        match (self.population, self.pollution) {
+            (0, 0) => write!(f, "  {}  ", self.type_),
+            (0, _) => write!(f, "  {}  ", self.pollution),
+            (_, 0) => write!(f, "  {}  ", self.population),
+            (_, _) => write!(f, "  {}  ", self.population),
         }
     }
 }
@@ -181,6 +183,10 @@ impl PartialOrd for MapCell {
 
 impl Ord for MapCell {
     fn cmp(&self, other: &Self) -> Ordering {
+        if self.pollution != other.pollution {
+            return self.pollution.cmp(&other.pollution);
+        }
+
         match (&self.type_, &other.type_) {
             (CellType::Commercial(_), CellType::Commercial(_)) => {}
             (CellType::Commercial(_), _) => return Ordering::Greater,
