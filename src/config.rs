@@ -1,88 +1,95 @@
-use std::{
-    fs,
-    io::{self, BufRead, Write},
-};
+use std::{error::Error, fs, io};
 
+#[derive(Debug)]
 pub struct Config {
-    pub region_layout_filename: String,
-    pub time_limit: u32,
-    pub refresh_rate: u32,
-    // config_filename: String,
+    config_filename: String,
+    region_layout_filename: String,
+    time_limit: u32,
+    refresh_rate: u32,
 }
 
 impl Config {
     pub fn from_user_input() -> Self {
         let config_filename = Self::request_config_filename();
-        let config = Self::read_config_file(&config_filename);
 
-        match config {
-            Ok(config) => config,
-            Err(message) => {
-                println!("{}", message);
-                return Self::from_user_input();
-            }
+        let (region_layout_filename, time_limit, refresh_rate) =
+            match Self::read_config_file(&config_filename) {
+                Ok(data) => data,
+                Err(e) => {
+                    println!("Error: {}", e);
+                    return Self::from_user_input();
+                }
+            };
+
+        Config {
+            config_filename,
+            region_layout_filename,
+            time_limit,
+            refresh_rate,
         }
     }
 
     fn request_config_filename() -> String {
-        let mut input = String::new();
-        print!("Please enter a valid config file(.txt): ");
-        io::stdout().flush().unwrap();
+        println!("Please input a valid config file(.txt): ");
+        let mut filename = String::new();
         io::stdin()
-            .read_line(&mut input)
-            .expect("Error: Failed to read user input");
-        input = input.trim().to_string();
+            .read_line(&mut filename)
+            .expect("Failed to read line");
 
-        while !input.ends_with(".txt") {
-            println!("Error: Invalid file format");
-            input.clear();
-            print!("Please enter a valid config file(.txt): ");
-            io::stdout().flush().unwrap();
+        while !Self::validate_file_extension(&filename, ".txt") {
+            println!("Error. Invalid File Format.");
+            println!("Please input a valid config file(.txt)");
+            filename.clear();
             io::stdin()
-                .read_line(&mut input)
-                .expect("Error: Failed to read user input");
-            input = input.trim().to_string();
+                .read_line(&mut filename)
+                .expect("Failed to read line");
         }
 
-        return input;
+        filename.trim().to_string()
     }
 
-    fn read_config_file(config_filename: &str) -> Result<Self, String> {
-        let file = fs::File::open(config_filename)
-            .map_err(|_| format!("Error: Couldn't find \"{}\"", config_filename))?;
+    fn read_config_file(config_filename: &str) -> Result<(String, u32, u32), Box<dyn Error>> {
+        let contents = fs::read_to_string(config_filename)
+            .map_err(|_| format!("Couldn't open \"{}\"", config_filename))?;
 
-        let reader = io::BufReader::new(file);
-        let mut region_layout_filename = String::new();
-        let mut time_limit = 0;
-        let mut refresh_rate = 0;
+        let mut result: (String, u32, u32) = (String::new(), 0, 0);
+        contents
+            .lines()
+            .map(|line| line.split_once(':').unwrap())
+            .for_each(|(key, value)| {
+                if key == "Region Layout" {
+                    result.0 = value.trim().to_string();
+                } else if key == "Time Limit" {
+                    result.1 = value.trim().parse().unwrap();
+                } else if key == "Refresh Rate" {
+                    result.2 = value.trim().parse().unwrap();
+                }
+            });
 
-        for line in reader.lines() {
-            let line = line.map_err(|_| "Error: Unexpected error while reading line")?;
-            let mut split = line.split(":");
-            let key = split.next().unwrap();
-            let value = split.next().unwrap();
-
-            match key {
-                "Region Layout" => region_layout_filename = value.trim().to_string(),
-                "Time Limit" => time_limit = value.trim().parse().unwrap(),
-                "Refresh Rate" => refresh_rate = value.trim().parse().unwrap(),
-                _ => (),
-            }
+        if result.0.is_empty() || !Self::validate_file_extension(&result.0, ".csv") {
+            return Err(format!("Missing 'Region Layout' in \"{}\"", config_filename).into());
+        }
+        if result.1 == 0 {
+            return Err(
+                format!("Missing or invalid 'Time Limit' in \"{}\"", config_filename).into(),
+            );
+        }
+        if result.2 == 0 {
+            return Err(format!(
+                "Missing or invalid 'Refresh Rate' in \"{}\"",
+                config_filename
+            )
+            .into());
         }
 
-        if region_layout_filename.is_empty() || !region_layout_filename.ends_with(".csv") {
-            return Err("Error: Couldn't read 'Region Layout' from config file. Please ensure config file line is in the format 'Region Layout: <Region_Layout_File>.csv'".to_string());
-        } else if time_limit == 0 {
-            return Err("Error: Couldn't read 'Time Limit' from config file. Please ensure config file line is in the format 'Time Limit: <Time_Limit>'".to_string());
-        } else if refresh_rate == 0 {
-            return Err("Error: Couldn't read 'Refresh Rate' from config file. Please ensure config file line is in the format 'Refresh Rate: <Refresh_Rate>'".to_string());
+        Ok(result)
+    }
+
+    fn validate_file_extension(filename: &str, extension: &str) -> bool {
+        if filename.trim().len() < extension.len() {
+            return false;
         }
 
-        return Ok(Self {
-            // config_filename: String::from(config_filename),
-            refresh_rate,
-            time_limit,
-            region_layout_filename,
-        });
+        filename.trim().ends_with(extension)
     }
 }
