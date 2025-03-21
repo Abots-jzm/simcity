@@ -2,10 +2,9 @@ use std::{error::Error, fs, io};
 
 #[derive(Debug)]
 pub struct Config {
-    config_filename: String,
-    region_layout_filename: String,
-    time_limit: u32,
-    refresh_rate: u32,
+    pub region_layout_filename: String,
+    pub time_limit: u32,
+    pub refresh_rate: u32,
 }
 
 impl Config {
@@ -22,11 +21,17 @@ impl Config {
             };
 
         Config {
-            config_filename,
             region_layout_filename,
             time_limit,
             refresh_rate,
         }
+    }
+
+    pub fn reinitialize(&mut self) {
+        let new_config = Self::from_user_input();
+        self.region_layout_filename = new_config.region_layout_filename;
+        self.time_limit = new_config.time_limit;
+        self.refresh_rate = new_config.refresh_rate;
     }
 
     fn request_config_filename() -> String {
