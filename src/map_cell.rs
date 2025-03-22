@@ -228,6 +228,7 @@ impl PartialEq for MapCell {
         self.position == other.position
             && self.cell_type == other.cell_type
             && self.population == other.population
+            && self.pollution == other.pollution
     }
 }
 

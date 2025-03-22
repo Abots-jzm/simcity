@@ -1,4 +1,4 @@
-use crate::{config::Config, map::Map};
+use crate::{config::Config, map::Map, map_cell::CellType};
 
 pub struct Simulation<'a> {
     config: &'a Config,
@@ -34,12 +34,47 @@ impl<'a> Simulation<'a> {
             self.print_current_state();
         }
 
-        if self.time_step < 8 {
+        if self.should_simulation_end() {
+            self.map.spread_pollution();
+            self.end();
+        } else {
             self.next();
         }
-        // if self.time_step < self.config.time_limit {
-        //     self.next();
-        // }
+    }
+
+    fn end(&self) {
+        println!("\nFINAL REGION STATE");
+        println!("{}\n", self.map);
+        println!(
+            "Available Workers: {}",
+            Map::get_available_workers(&self.map.current)
+        );
+        println!(
+            "Available Goods: {}",
+            Map::get_available_goods(&self.map.current)
+        );
+        println!(
+            "Total Population: {}",
+            Map::get_population(&self.map.current, None)
+        );
+        println!(
+            "Residential population: {}",
+            Map::get_population(&self.map.current, Some(&CellType::Residential('R')))
+        );
+        println!(
+            "Commercial population: {}",
+            Map::get_population(&self.map.current, Some(&CellType::Commercial('C')))
+        );
+        println!(
+            "Industrial population: {}\n",
+            Map::get_population(&self.map.current, Some(&CellType::Industrial('I')))
+        );
+        println!("Final pollution state: ");
+        Map::print_pollution(&self.map.current);
+        println!(
+            "Total pollution: {}\n",
+            Map::total_pollution(&self.map.current)
+        );
     }
 
     fn print_current_state(&self) {
@@ -54,5 +89,10 @@ impl<'a> Simulation<'a> {
             "Available Goods: {}\n",
             Map::get_available_goods(&self.map.current)
         )
+    }
+
+    fn should_simulation_end(&self) -> bool {
+        self.time_step >= self.config.time_limit
+            || self.map.current == *self.map.previous.as_ref().unwrap()
     }
 }

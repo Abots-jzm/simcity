@@ -59,6 +59,38 @@ impl Map {
         map
     }
 
+    pub fn spread_pollution(&mut self) {
+        // Collect all cells into a vector
+        let mut cells: Vec<Rc<RefCell<MapCell>>> = self
+            .current
+            .iter()
+            .flatten()
+            .map(|cell| Rc::clone(cell))
+            .collect();
+
+        // Sort cells by pollution level in descending order
+        cells.sort_by(|a, b| b.borrow().pollution.cmp(&a.borrow().pollution));
+
+        // Process cells with pollution >= 2
+        for cell in cells {
+            let pollution_level = cell.borrow().pollution;
+            if pollution_level < 2 {
+                continue;
+            }
+
+            // Get weak references to neighbors and process them
+            let neighbors = cell.borrow().neighbors.clone();
+            for neighbor_weak in &neighbors {
+                if let Some(neighbor) = neighbor_weak.upgrade() {
+                    let neighbor_pollution = neighbor.borrow().pollution;
+                    if neighbor_pollution < pollution_level - 1 {
+                        neighbor.borrow_mut().pollution = pollution_level - 1;
+                    }
+                }
+            }
+        }
+    }
+
     pub fn step(&mut self) {
         let mut cells: Vec<Rc<RefCell<MapCell>>> = self
             .current
@@ -160,6 +192,24 @@ impl Map {
         }
     }
 
+    pub fn get_population(grid: &MapGrid, cell_type: Option<&CellType>) -> i32 {
+        let mut total_population = 0;
+
+        for row in grid {
+            for cell_rc in row {
+                let cell = cell_rc.borrow();
+                if let Some(cell_type) = &cell_type {
+                    if &cell.cell_type != *cell_type {
+                        continue;
+                    }
+                }
+                total_population += cell.population as i32;
+            }
+        }
+
+        total_population
+    }
+
     pub fn get_available_workers(grid: &MapGrid) -> i32 {
         let mut total_workers = 0;
         let mut taken_workers = 0;
@@ -205,6 +255,47 @@ impl Map {
         }
 
         total_goods - sold_goods
+    }
+
+    pub fn total_pollution(grid: &MapGrid) -> i32 {
+        let mut total_pollution = 0;
+
+        for row in grid {
+            for cell_rc in row {
+                let cell = cell_rc.borrow();
+                total_pollution += cell.pollution as i32;
+            }
+        }
+
+        total_pollution
+    }
+
+    pub fn print_pollution(grid: &MapGrid) {
+        // Print top border
+        let width = grid[0].len();
+        println!();
+        for _ in 0..width {
+            print!("----");
+        }
+        println!("--");
+
+        // Print each row with pollution values
+        for row in grid {
+            print!("|"); // Left border
+            for cell in row {
+                let poll = cell.borrow().pollution;
+                // Format pollution as fixed width of 3 characters
+                print!(" {:<3}", poll);
+            }
+            println!("|"); // Right border
+        }
+
+        // Print bottom border
+        for _ in 0..width {
+            print!("----");
+        }
+        println!("--");
+        println!();
     }
 }
 
