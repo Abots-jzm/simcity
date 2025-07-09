@@ -13,6 +13,17 @@ pub enum CellType {
     Other(char),
 }
 
+impl CellType {
+    pub fn as_char(&self) -> char {
+        match self {
+            CellType::Residential(c) => *c,
+            CellType::Industrial(c) => *c,
+            CellType::Commercial(c) => *c,
+            CellType::Other(c) => *c,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct MapCell {
     pub position: (u32, u32),
@@ -211,12 +222,7 @@ impl MapCell {
 impl Display for MapCell {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if self.population == 0 {
-            match &self.cell_type {
-                CellType::Residential(c) => write!(f, "{}", c),
-                CellType::Industrial(c) => write!(f, "{}", c),
-                CellType::Commercial(c) => write!(f, "{}", c),
-                CellType::Other(c) => write!(f, "{}", c),
-            }
+            write!(f, "{}", self.cell_type.as_char())
         } else {
             write!(f, "{}", self.population)
         }
@@ -243,23 +249,9 @@ impl PartialOrd for MapCell {
 impl Ord for MapCell {
     fn cmp(&self, other: &Self) -> Ordering {
         // Rule 1: Commercial zoned cells are prioritized over industrial zoned cells,
-        //         and industrial cells over residential
-        let self_type_char = match &self.cell_type {
-            CellType::Commercial(_) => 'C',
-            CellType::Industrial(_) => 'I',
-            CellType::Residential(_) => 'R',
-            CellType::Other(c) => *c,
-        };
-
-        let other_type_char = match &other.cell_type {
-            CellType::Commercial(_) => 'C',
-            CellType::Industrial(_) => 'I',
-            CellType::Residential(_) => 'R',
-            CellType::Other(c) => *c,
-        };
-
+        // and industrial cells over residential
         // Compare zone types with priority C > I > R
-        match (self_type_char, other_type_char) {
+        match (self.cell_type.as_char(), other.cell_type.as_char()) {
             ('C', 'C') | ('I', 'I') | ('R', 'R') => {} // Same type, continue to next rule
             ('C', _) => return Ordering::Less,         // C has highest priority (should be first)
             (_, 'C') => return Ordering::Greater,      // Other has C, so it gets priority
